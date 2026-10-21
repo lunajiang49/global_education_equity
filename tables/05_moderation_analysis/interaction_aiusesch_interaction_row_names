@@ -1,0 +1,7 @@
+ [1] "(Intercept)" "ESCS"        "AIUSESCH"    "ESCS_ICT"    "CNTARG"      "CNTAUS"      "CNTAUT"     
+ [8] "CNTBEL"      "CNTBGR"      "CNTBRN"      "CNTCHE"      "CNTDEU"      "CNTDOM"      "CNTESP"     
+[15] "CNTEST"      "CNTFIN"      "CNTGBR"      "CNTGEO"      "CNTGRC"      "CNTHKG"      "CNTHUN"     
+[22] "CNTIRL"      "CNTISL"      "CNTISR"      "CNTITA"      "CNTJOR"      "CNTJPN"      "CNTKOR"     
+[29] "CNTLBN"      "CNTLUX"      "CNTMAC"      "CNTMAR"      "CNTMNG"      "CNTMYS"      "CNTNLD"     
+[36] "CNTNZL"      "CNTPOL"      "CNTQAT"      "CNTQCI"      "CNTQUA"      "CNTROU"      "CNTSGP"     
+[43] "CNTSVN"      "CNTTAP"      "CNTTUR"      "CNTURY"      "CNTUSA"      "MALE"        "R-squared"  

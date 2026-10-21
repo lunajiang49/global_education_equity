@@ -1,0 +1,70 @@
+```{r} 
+#set up
+library(haven)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(knitr)
+library(dplyr)
+
+```
+```{r}
+
+# Import raw PISA data
+pisa_raw <- read_sav(
+  "../data/raw/CY09_MS_STU_PUF.sav",
+  col_select = c(
+    Option_ICTQ,
+    ST004D01T, # gender
+    MALE, 
+    CNT,
+    ICTRES,
+    AIUSESCH,
+    ICTSCH,
+    ICTHOME,
+    ICTQUAL,
+    ICTFEED,
+    ICTOUT,
+    ICTWKDY,
+    ICTWKEND,
+    DIGINTLRN,
+    INTICT,
+    ICTAVHOME,
+    ICTAVSCH,
+    ICTINFO,
+    ESCS,
+    W_FSTUWT,
+    starts_with("W_FSTURWT"),
+    starts_with("PV") & matches("^(PV[1-9]|PV10)(SCIE|MATH|READ|CMPS|CPPK|CMOD|CPRO)$")
+  )
+)
+
+# Basic inspection
+dim(pisa_raw)
+names(pisa_raw)[1:50]
+glimpse(pisa_raw)
+```
+```{r}
+# ICT questionnairs are not delivered in certain countries (Option_ICTQ == 0), so we filter out these countries
+pisa_clean <- pisa_raw %>%
+  filter(Option_ICTQ == 1)
+
+nrow(pisa_clean)
+
+nrow(pisa_clean)/nrow(pisa_raw)
+# 48% of all students are delivered the ICT questionnaire
+glimpse(pisa_clean)
+
+```
+
+```{r}
+# export
+
+dir.create("/Users/luna/Desktop/GlobalED/data/processed", showWarnings = FALSE)
+
+data.table::fwrite(
+  pisa_clean,
+  file = "/Users/luna/Desktop/GlobalED/data/processed/pisa_clean.csv"
+)
+```

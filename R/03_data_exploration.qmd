@@ -1,0 +1,537 @@
+```{r} 
+#set up
+#| message: false
+#| warning: false
+library(haven)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(knitr)
+library(dplyr)
+library(interactions)
+library(corrplot)
+
+```
+## Sample Overview
+```{r}
+getwd()
+file.exists("pisa_analytics.csv")
+
+pisa_analytics <- read.csv("../data/processed/pisa_analytics.csv")
+nrow(pisa_analytics)
+length(unique(na.omit(pisa_analytics$CNT)))
+
+```
+335424 observations in 44 countries
+
+## Missing Values
+```{r}
+missing_table <- data.frame(
+  variable = names(pisa_analytics),
+  missing_percent = round(colMeans(is.na(pisa_analytics)) * 100, 2)
+)
+
+missing_table[order(-missing_table$missing_percent), ]
+missing_table
+
+```
+Because ICTRES has exceptionally high missing rate, I might consider leaving out that variable. To handle missing values, I will create a sample for each model that gets rid of the missing values only of the key variables in that model. 
+
+## Variable Distribution
+
+```{r}
+hist(
+  pisa_analytics$ESCS,
+  breaks = 30,
+  main = "Distribution of ESCS",
+  xlab = "ESCS",
+  col = "steelblue",
+  border = "white"
+)
+
+```
+The distribution of ESCS is slightly skewed to the left. This might be because of the exclusion of students who weren't distributed the ICT questionnaire. Therefore it is not a full PISA sample
+
+## ICT and AI Variable Distributions
+
+```{r}
+#| fig-width: 11
+#| fig-height: 12
+#| message: false
+#| warning: false
+
+ict_variables <- c(
+  "ICTRES",
+  "ICTINFO",
+  "INTICT",
+  "DIGINTLRN",
+  "ICTWKEND",
+  "ICTOUT",
+  "ICTWKDY",
+  "ICTFEED",
+  "ICTQUAL",
+  "ICTHOME",
+  "ICTAVHOME",
+  "ICTSCH",
+  "ICTAVSCH",
+  "AIUSESCH"
+)
+
+ict_missing_labels <- missing_table |>
+  filter(variable %in% ict_variables) |>
+  mutate(
+    variable = factor(variable, levels = ict_variables),
+    label = paste0(variable, "\nmissing: ", missing_percent, "%")
+  ) |>
+  arrange(variable)
+
+pisa_analytics |>
+  select(all_of(ict_variables)) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) |>
+  drop_na(value) |>
+  left_join(
+    ict_missing_labels |>
+      transmute(
+        variable = as.character(variable),
+        label
+      ),
+    by = "variable"
+  ) |>
+  mutate(label = factor(label, levels = ict_missing_labels$label)) |>
+  ggplot(aes(x = value)) +
+  geom_histogram(
+    bins = 30,
+    fill = "steelblue",
+    color = "white",
+    linewidth = 0.2
+  ) +
+  facet_wrap(~label, scales = "free", ncol = 3) +
+  labs(
+    title = "Distributions of ICT and AI Use Variables",
+    x = NULL,
+    y = "Number of students"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+```
+
+Missing observations are removed within each variable's histogram. The panel labels report the percent missing in the analytic sample.
+
+## Descriptive Statistics
+
+```{r}
+#| message: false
+#| warning: false
+
+descriptive_variables <- c(ict_variables, "ESCS", "PV1SCIE")
+
+descriptive_statistics <- map_dfr(descriptive_variables, function(variable) {
+  values <- pisa_analytics[[variable]]
+
+  tibble(
+    Variable = variable,
+    `Valid N` = sum(!is.na(values)),
+    `Missing N` = sum(is.na(values)),
+    `Missing (%)` = round(mean(is.na(values)) * 100, 2),
+    Mean = round(mean(values, na.rm = TRUE), 2),
+    SD = round(sd(values, na.rm = TRUE), 2),
+    Median = round(median(values, na.rm = TRUE), 2),
+    Minimum = round(min(values, na.rm = TRUE), 2),
+    Maximum = round(max(values, na.rm = TRUE), 2)
+  )
+})
+
+descriptive_statistics |>
+  mutate(
+    across(
+      c(`Valid N`, `Missing N`),
+      ~ format(.x, big.mark = ",", scientific = FALSE, trim = TRUE)
+    ),
+    across(
+      c(`Missing (%)`, Mean, SD, Median, Minimum, Maximum),
+      ~ sprintf("%.2f", ifelse(abs(.x) < 0.005, 0, .x))
+    )
+  ) |>
+  knitr::kable(
+    caption = "Descriptive Statistics for ICT, AI, ESCS, and Science Variables",
+    align = c("l", rep("r", 8))
+  )
+```
+
+Statistics are calculated from all available observations for each variable.
+
+```{r}
+gender_percent <- round(
+  100 * prop.table(table(pisa_analytics$MALE)),
+  2
+)
+gender_percent
+```
+Because of how the data was collected, MALE is a binary field where 1 = male and 0 = female/other. They are roughly similar. 
+
+```{r}
+m1 <- lm(PV1SCIE ~ ESCS, data = pisa_analytics)
+summary(m1)
+
+
+```
+ESCS displays a significant positive relationship with achievement. Althoguh with adjusted R-squared 0.1093, ESCS only account for 10% change in science scores. 
+
+```{r}
+
+set.seed(123)
+
+# Sample observations to keep the plot readable
+plot_data <- pisa_analytics |>
+  select(ESCS, PV1SCIE) |>
+  drop_na() |>
+  slice_sample(n = 20000)
+
+# Predictions and 95% confidence intervals from m1
+prediction_grid <- tibble(
+  ESCS = seq(
+    min(pisa_analytics$ESCS),
+    max(pisa_analytics$ESCS),
+    length.out = 200
+  )
+)
+
+prediction_grid <- bind_cols(
+  prediction_grid,
+  as_tibble(
+    predict(
+      m1,
+      newdata = prediction_grid,
+      interval = "confidence"
+    )
+  )
+)
+
+ggplot(plot_data, aes(x = ESCS, y = PV1SCIE)) +
+  geom_point(alpha = 0.08, size = 0.6, color = "grey40") +
+  geom_ribbon(
+    data = prediction_grid,
+    aes(x = ESCS, ymin = lwr, ymax = upr),
+    inherit.aes = FALSE,
+    fill = "steelblue",
+    alpha = 0.25
+  ) +
+  geom_line(
+    data = prediction_grid,
+    aes(x = ESCS, y = fit),
+    inherit.aes = FALSE,
+    color = "steelblue",
+    linewidth = 1.2
+  ) +
+  labs(
+    title = "Relationship Between Socioeconomic Status and Science Achievement",
+    subtitle = "Linear regression estimate with 95% confidence interval",
+    x = "Economic, Social, and Cultural Status (ESCS)",
+    y = "Science Achievement (PV1SCIE)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+m2 <- lm(PV1SCIE ~ ESCS + CNT + MALE, data = pisa_analytics)
+summary(m2)
+```
+After controlling for country and gender, we found that country explains a lot about the variation after controlling for ESCS and gender. This model explaine around 28% of differences in science scores. 
+
+```{r}
+m3 <- lm(PV1SCIE ~ ICTRES + CNT + MALE, data = pisa_analytics)
+summary(m3)
+
+```
+ICTRES has a significant but small positive effect on science scores. The p-value of MALE shows that there is no significant difference between male and female. 
+```{r}
+m4 <- lm(PV1SCIE ~ ICTSCH + CNT + MALE, data = pisa_analytics)
+summary(m4)
+```
+ICTSCH displays a significant but extremely small negative effect. I would conclude as no significant effect on science scores. 
+```{r}
+m5 <- lm(PV1SCIE ~ ICTWKEND + CNT + MALE, data = pisa_analytics)
+summary(m5)
+```
+ICTWKEND has a negative significant effect on science scores
+
+```{r}
+m6 <- lm(PV1SCIE ~ INTICT + CNT + MALE, data = pisa_analytics)
+summary(m6)
+```
+INTICT has a positive significant efffect on science scores
+
+I realized that if I have different samples for each model, I won't be able to compare the values because they are of different students. I will check if the missing values overlap and take out any that are appropriate. 
+
+```{r}
+
+pisa_strip <- pisa_analytics |> drop_na()
+nrow(pisa_strip)
+nrow(pisa_analytics)
+
+nrow(pisa_strip)/nrow(pisa_analytics)
+```
+
+```{r}
+pisa_strip |>
+  summarise(
+    mean_escs = mean(ESCS),
+    sd_escs = sd(ESCS),
+    median_escs = median(ESCS)
+  )
+pisa_analytics |>
+  summarise(
+    mean_escs = mean(ESCS),
+    sd_escs = sd(ESCS),
+    median_escs = median(ESCS)
+  )
+```
+```{r}
+pisa_analytics |>
+  summarise(
+    mean_science = mean(PV1SCIE, na.rm = TRUE),
+    sd_science = sd(PV1SCIE, na.rm = TRUE)
+  )
+
+pisa_strip |>
+  summarise(
+    mean_science = mean(PV1SCIE),
+    sd_science = sd(PV1SCIE)
+  )
+```
+```{r}
+country_comparison <- pisa_analytics |>
+  count(CNT, name = "original_n") |>
+  left_join(
+    pisa_strip |>
+      count(CNT, name = "retained_n"),
+    by = "CNT"
+  ) |>
+  mutate(
+    retained_n = coalesce(retained_n, 0L),
+    retention_rate = retained_n / original_n
+  ) |>
+  arrange(retention_rate)
+
+country_comparison
+
+```
+Because deleting observations missing one or more variables will delete more than 50% of the original number of observations, we will not exclude them in the analysis. 
+
+```{r}
+
+m7 <- lm(PV1SCIE ~ AIUSESCH + CNT + MALE, data = pisa_analytics)
+summary(m7)
+```
+AIUSESCH has insignificant relationship with science scores
+
+```{r}
+m_interaction <- lm(PV1SCIE ~ ESCS * INTICT + CNT + MALE,data = pisa_analytics)
+
+summary(m_interaction)
+```
+```{r}
+library(interactions)
+
+interact_plot(
+  m_interaction,
+  pred = ESCS,
+  modx = INTICT,
+  modx.values = "plus-minus"
+)
+```
+Because the slopes are nearly parallel, the interaction term is extremely small yet significant. 
+```{r}
+m_interaction1 <- lm(PV1SCIE ~ ESCS * ICTINFO + CNT + MALE,data = pisa_analytics)
+
+summary(m_interaction1)
+```
+```{r}
+interact_plot(
+  m_interaction1,
+  pred = ESCS,
+  modx = ICTINFO,
+  modx.values = "plus-minus"
+)
+```
+ICTINFO displays a moderate negative interaction. 
+
+Correlation Matrix
+```{r}
+vars <- pisa_analytics |>
+  select(
+    ESCS, PV1SCIE,
+    ict_variables
+  )
+
+cor_matrix <- cor(
+  vars,
+  use = "pairwise.complete.obs"
+)
+
+round(cor_matrix, 2)
+
+corrplot(
+  cor_matrix,
+  method = "color",
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.srt = 45
+)
+```
+Because some of the ICT variables overlap, I will not put two ICT variables in one model to avoid multicollinearity. The most negative relationship is between ICTWKDY and PV1SCIE. ICTWKND also has a negative relationship wtih PV1SCIE. It might explain that frequency of ICT is no longer useful in showing whether students might benefit from ICT. 
+
+Correlation matrix adjusted for CNT and Gender
+```{r}
+analysis_vars <- c("ESCS", "PV1SCIE", ict_variables)
+
+adjusted_vars <- pisa_analytics |>
+  mutate(
+    CNT  = factor(CNT),
+    MALE = factor(MALE)
+  ) |>
+  select(CNT, MALE, all_of(analysis_vars)) |>
+  mutate(
+    across(
+      all_of(analysis_vars),
+      ~ residuals(
+          lm(.x ~ CNT + MALE, na.action = na.exclude)
+        )
+    )
+  ) |>
+  select(all_of(analysis_vars))
+
+partial_cor_matrix <- cor(
+  adjusted_vars,
+  use = "pairwise.complete.obs"
+)
+
+corrplot(
+  partial_cor_matrix,
+  method = "color",
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.srt = 45
+)
+```
+
+```{r}
+library(tidyverse)
+library(knitr)
+
+# ICT-related variables used in your analysis
+ict_variables <- c(
+  "ICTRES",
+  "ICTINFO",
+  "INTICT",
+  "DIGINTLRN",
+  "ICTWKEND",
+  "ICTOUT",
+  "ICTWKDY",
+  "ICTFEED",
+  "ICTQUAL",
+  "ICTHOME",
+  "ICTAVHOME",
+  "ICTSCH",
+  "ICTAVSCH",
+  "AIUSESCH"
+)
+
+# Labels displayed in the table
+variable_labels <- c(
+  ESCS      = "Economic, social, and cultural status",
+  PV1SCIE   = "Science score",
+  ICTRES    = "ICT resources",
+  ICTINFO   = "ICT use for information",
+  INTICT    = "Interest in ICT",
+  DIGINTLRN = "Digital learning interest",
+  ICTWKEND  = "ICT use on weekends",
+  ICTOUT    = "ICT use outside school",
+  ICTWKDY   = "ICT use on weekdays",
+  ICTFEED   = "ICT feedback",
+  ICTQUAL   = "ICT quality",
+  ICTHOME   = "ICT use at home",
+  ICTAVHOME = "ICT availability at home",
+  ICTSCH    = "ICT use at school",
+  ICTAVSCH  = "ICT availability at school",
+  AIUSESCH  = "AI use at school",
+  MALE      = "Gender (male = 1)"
+)
+
+# Function for calculating one row of statistics
+summarise_variable <- function(variable) {
+  x <- pisa_analytics[[variable]]
+
+  tibble(
+    Variables = unname(variable_labels[variable]),
+    N    = sum(!is.na(x)),
+    Mean = mean(x, na.rm = TRUE),
+    SD   = sd(x, na.rm = TRUE),
+    Min  = min(x, na.rm = TRUE),
+    Max  = max(x, na.rm = TRUE)
+  )
+}
+
+# Construct the table
+descriptive_table <- bind_rows(
+  # Main variables
+  map_dfr(
+    c("ESCS", "PV1SCIE", ict_variables),
+    summarise_variable
+  ),
+
+  # Section heading
+  tibble(
+    Variables = "**Control variables**",
+    N = NA_real_,
+    Mean = NA_real_,
+    SD = NA_real_,
+    Min = NA_real_,
+    Max = NA_real_
+  ),
+
+  # Gender
+  summarise_variable("MALE"),
+
+  # Country: report only the number of countries
+  tibble(
+    Variables = "Country (number of countries)",
+    N = n_distinct(pisa_analytics$CNT, na.rm = TRUE),
+    Mean = NA_real_,
+    SD = NA_real_,
+    Min = NA_real_,
+    Max = NA_real_
+  )
+) |>
+  mutate(
+    N = ifelse(
+      is.na(N),
+      "",
+      format(N, big.mark = ",", scientific = FALSE, trim = TRUE)
+    ),
+    across(
+      c(Mean, SD, Min, Max),
+      ~ ifelse(is.na(.x), "", sprintf("%.3f", .x))
+    )
+  )
+
+# Display in Quarto/R Markdown
+descriptive_table |>
+  knitr::kable(
+    caption = "Descriptive Statistics",
+    col.names = c("Variables", "N", "Mean", "SD", "Min", "Max"),
+    align = c("l", "r", "r", "r", "r", "r"),
+    escape = FALSE
+  )
+```
+

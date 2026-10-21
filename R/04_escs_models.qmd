@@ -1,0 +1,82 @@
+# Set up and loading in data
+
+```{r} 
+#| message: false
+#| warning: false
+library(haven)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(knitr)
+library(dplyr)
+library(interactions)
+library(corrplot)
+library(intsvy)
+library(ggplot2)
+
+getwd()
+file.exists("pisa_analytics.csv")
+
+pisa_analytics <- read.csv("../data/processed/pisa_analytics.csv")
+
+```
+
+# ESCS-Science W/O controls
+```{r}
+model1 <- pisa.reg.pv(
+  pvlabel = paste0("PV", 1:10, "SCIE"),
+  x = "ESCS",
+  data = pisa_analytics
+)
+
+model1$reg
+```
+# ESCS-Science W/ controls
+```{r}
+model2 <- pisa.reg.pv(
+  pvlabel = paste0("PV", 1:10, "SCIE"),
+  x = c("ESCS", "MALE", "CNT"),
+  data = pisa_analytics
+)
+
+model2$reg
+```
+
+```{r}
+library(ggplot2)
+
+coefs <- model2$reg
+
+plot_data <- pisa_analytics[
+  complete.cases(pisa_analytics[, c("ESCS", "PV1SCIE", "MALE", "CNT")]),
+]
+
+# Find each student's country coefficient.
+# The omitted reference country has a coefficient of 0.
+country_term <- paste0("CNT", as.character(plot_data$CNT))
+country_effect <- coefs[match(country_term, rownames(coefs)), "Estimate"]
+country_effect[is.na(country_effect)] <- 0
+
+plot_data$adjusted_science <-
+  plot_data$PV1SCIE -
+  coefs["MALE", "Estimate"] * plot_data$MALE -
+  country_effect
+
+ggplot(plot_data, aes(x = ESCS, y = adjusted_science)) +
+  geom_point(alpha = 0.01, size = 0.3) +
+  geom_abline(
+    intercept = coefs["(Intercept)", "Estimate"],
+    slope = coefs["ESCS", "Estimate"],
+    colour = "#2878B5",
+    linewidth = 1.2
+  ) +
+  labs(
+    title = "ESCS and science performance",
+    subtitle = "All included countries; dots adjusted for country and MALE",
+    x = "ESCS",
+    y = "Adjusted science score (PV1SCIE)"
+  ) +
+  theme_minimal()
+
+```

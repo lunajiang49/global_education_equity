@@ -1,0 +1,498 @@
+# Set up
+```{r} 
+#| message: false
+#| warning: false
+library(haven)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(knitr)
+library(dplyr)
+library(interactions)
+library(corrplot)
+library(intsvy)
+library(ggplot2)
+
+getwd()
+file.exists("pisa_analytics.csv")
+
+pisa_analytics <- read.csv("../data/processed/pisa_analytics.csv")
+
+```
+## setting up function
+```{r}
+
+run_moderation <- function(data, moderator) {
+
+  pvs <- paste0("PV", 1:10, "SCIE")
+  weights <- c("W_FSTUWT", paste0("W_FSTURWT", 1:80))
+
+  # Check that the required columns exist
+  needed <- c("ESCS", moderator, "CNT", "MALE", pvs, weights)
+  missing_columns <- setdiff(needed, names(data))
+
+  if (length(missing_columns) > 0) {
+    stop(
+      "Missing columns: ",
+      paste(missing_columns, collapse = ", ")
+    )
+  }
+
+  d <- data |>
+    drop_na(all_of(needed)) |>
+    filter(W_FSTUWT > 0) |>
+    mutate(CNT = factor(CNT))
+
+  d$ESCS_ICT <- d$ESCS * d[[moderator]]
+
+  controls <- c("CNT", "MALE")
+
+  baseline <- pisa.reg.pv(
+    pvlabel = pvs,
+    x = c("ESCS", controls),
+    data = d,
+    std = FALSE
+  )
+
+  additive <- pisa.reg.pv(
+    pvlabel = pvs,
+    x = c("ESCS", moderator, controls),
+    data = d,
+    std = FALSE
+  )
+
+  interaction <- pisa.reg.pv(
+    pvlabel = pvs,
+    x = c("ESCS", moderator, "ESCS_ICT", controls),
+    data = d,
+    std = FALSE
+  )
+
+
+  results <- list(
+    moderator = moderator,
+    n_students = nrow(d),
+    country_counts = count(d, CNT, name = "n_students"),
+    baseline = baseline,
+    additive = additive,
+    interaction = interaction
+  )
+
+
+  output_dir <- here::here("tables", "05_moderation_analysis")
+
+  dir.create(
+    output_dir,
+    recursive = TRUE,
+    showWarnings = FALSE
+  )
+
+
+  baseline_table <- results$baseline$reg |>
+    as.data.frame() |>
+    tibble::rownames_to_column("term")
+
+  additive_table <- results$additive$reg |>
+    as.data.frame() |>
+    tibble::rownames_to_column("term")
+
+  interaction_table <- results$interaction$reg |>
+    as.data.frame() |>
+    tibble::rownames_to_column("term")
+
+  readr::write_csv(
+    baseline_table,
+    file.path(
+      output_dir,
+      paste0("baseline_", tolower(moderator), ".csv")
+    )
+  )
+
+  readr::write_csv(
+    additive_table,
+    file.path(
+      output_dir,
+      paste0("additive_", tolower(moderator), ".csv")
+    )
+  )
+
+  readr::write_csv(
+    interaction_table,
+    file.path(
+      output_dir,
+      paste0("interaction_", tolower(moderator), ".csv")
+    )
+  )
+
+  return(results)
+}
+
+
+```
+
+# ICTRES
+```{r}
+
+ictres_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTRES"
+)
+
+pvs <- paste0("PV", 1:10, "SCIE")
+weights <- c("W_FSTUWT", paste0("W_FSTURWT", 1:80))
+needed <- c("ESCS", "ICTRES", "CNT", "MALE", pvs, weights)
+
+ictres_n_students <- pisa_analytics |>
+  tidyr::drop_na(dplyr::all_of(needed)) |>
+  dplyr::filter(W_FSTUWT > 0) |>
+  nrow()
+
+ictres_n_students
+```
+
+```{r}
+
+ictres_analysis$interaction$reg
+getwd()
+```
+# AIUSESCH
+```{r}
+
+aiusesch_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "AIUSESCH"
+)
+rownames(aiusesch_analysis$additive$reg)
+aiusesch_analysis$n_students
+
+```
+# ICTSCH
+```{r}
+
+ictsch_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTSCH"
+)
+
+ictsch_analysis$n_students
+
+```
+
+# INTICT
+```{r}
+
+intict_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "INTICT"
+)
+intict_analysis$n_students
+
+
+```
+# DIGINTLRN
+```{r}
+
+digintlrn_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "DIGINTLRN"
+)
+digintlrn_analysis$n_students
+
+
+```
+# ICTFEED
+```{r}
+
+ictfeed_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTFEED"
+)
+
+ictfeed_analysis$n_students
+
+
+```
+# ICTHOME
+```{r}
+
+icthome_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTHOME"
+)
+
+icthome_analysis$n_students
+
+
+```
+# ICTQUAL
+```{r}
+
+ictqual_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTQUAL"
+)
+
+ictqual_analysis$n_students
+
+
+```
+
+# ICTINFO
+```{r}
+
+ictinfo_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTINFO"
+)
+
+ictinfo_analysis$n_students
+
+
+```
+# ICTOUT
+```{r}
+
+ictout_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTOUT"
+)
+
+ictout_analysis$n_students
+
+
+```
+# ICTWKEND
+```{r}
+
+ictwkend_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTWKEND"
+)
+
+ictwkend_analysis$n_students
+
+
+```
+# ICTWKDY
+```{r}
+
+ictwkdy_analysis <- run_moderation(
+    data = pisa_analytics, 
+    moderator = "ICTWKDY"
+)
+
+ictwkdy_analysis$n_students
+
+
+```
+
+# Interaction plots
+
+```{r}
+#| label: fig-moderation-interactions
+#| fig-width: 7
+#| fig-height: 12
+#| fig-cap: "Interactions between ESCS and four ICT measures in predicting science performance."
+#| warning: false
+#| message: false
+
+moderator_info <- tibble::tribble(
+  ~moderator,  ~panel_title,                    ~axis_label,
+  "ICTSCH",    "1. ICT availability at school",   "ICT availability at school",
+  "ICTQUAL",   "2. Quality of access to ICT",     "Quality of access to ICT",
+  "ICTWKEND",  "3. Frequency of ICT activity – Weekend", "Frequency of ICT activity – Weekend",
+  "AIUSESCH",  "4. Students' AI use at school",   "Students' AI use at school"
+)
+
+# This works both when the QMD is run from R/ and from the project root.
+model_dir <- file.path("tables", "05_moderation_analysis")
+if (!file.exists(file.path(model_dir, "interaction_ictsch.csv"))) {
+  model_dir <- file.path("R", "tables", "05_moderation_analysis")
+}
+
+read_interaction_coefs <- function(moderator) {
+  path <- file.path(
+    model_dir,
+    paste0("interaction_", tolower(moderator), ".csv")
+  )
+
+  coefs <- readr::read_csv(path, show_col_types = FALSE)
+
+  # The existing AIUSESCH file was written without its row-name column.
+  # Its rows have the same term order as the other interaction tables.
+  if (!"term" %in% names(coefs)) {
+    template <- readr::read_csv(
+      file.path(model_dir, "interaction_ictsch.csv"),
+      show_col_types = FALSE
+    )
+
+    if (nrow(coefs) != nrow(template)) {
+      stop("Cannot recover coefficient names for ", basename(path))
+    }
+
+    recovered_terms <- template$term
+    recovered_terms[recovered_terms == "ICTSCH"] <- moderator
+    coefs <- dplyr::bind_cols(term = recovered_terms, coefs)
+  }
+
+  coefs |>
+    dplyr::select(term, Estimate)
+}
+
+weighted_quantile <- function(x, w, probs = c(0.25, 0.75)) {
+  keep <- is.finite(x) & is.finite(w) & w > 0
+  x <- x[keep]
+  w <- w[keep]
+  ord <- order(x)
+  x <- x[ord]
+  cumulative_weight <- cumsum(w[ord]) / sum(w)
+
+  vapply(
+    probs,
+    function(p) x[which(cumulative_weight >= p)[1]],
+    numeric(1)
+  )
+}
+
+make_interaction_data <- function(moderator, panel_title, axis_label) {
+  coefs <- read_interaction_coefs(moderator)
+  b <- stats::setNames(coefs$Estimate, coefs$term)
+
+  # Match the complete-case sample used by run_moderation().
+  pvs <- paste0("PV", 1:10, "SCIE")
+  replicate_weights <- paste0("W_FSTURWT", 1:80)
+  needed <- c(
+    "ESCS", moderator, "CNT", "MALE", "W_FSTUWT",
+    pvs, replicate_weights
+  )
+
+  d <- pisa_analytics |>
+    dplyr::select(dplyr::all_of(needed)) |>
+    tidyr::drop_na() |>
+    dplyr::filter(W_FSTUWT > 0)
+
+  # Average the fitted country and gender controls over the model sample.
+  country_terms <- paste0("CNT", as.character(d$CNT))
+  country_effect <- unname(b[country_terms])
+  country_effect[is.na(country_effect)] <- 0
+
+  control_offset <-
+    b["(Intercept)"] +
+    b["MALE"] * stats::weighted.mean(d$MALE, d$W_FSTUWT) +
+    stats::weighted.mean(country_effect, d$W_FSTUWT)
+
+  escs_values <- weighted_quantile(d$ESCS, d$W_FSTUWT)
+  moderator_values <- weighted_quantile(d[[moderator]], d$W_FSTUWT)
+
+  tidyr::expand_grid(
+    ict_level = c("Low", "High"),
+    ses_level = c("Low ESCS", "High ESCS")
+  ) |>
+    dplyr::mutate(
+      ESCS = escs_values[match(ses_level, c("Low ESCS", "High ESCS"))],
+      moderator_value = moderator_values[match(ict_level, c("Low", "High"))],
+      predicted_science =
+        control_offset +
+        b["ESCS"] * ESCS +
+        b[moderator] * moderator_value +
+        b["ESCS_ICT"] * ESCS * moderator_value,
+      panel_title = panel_title,
+      x_label = paste(ict_level, axis_label),
+      ses_level = factor(ses_level, levels = c("Low ESCS", "High ESCS")),
+      x_label = factor(
+        x_label,
+        levels = paste(c("Low", "High"), axis_label)
+      )
+    )
+}
+
+interaction_plot_data <- purrr::pmap_dfr(
+  moderator_info,
+  make_interaction_data
+) |>
+  dplyr::mutate(
+    panel_title = factor(panel_title, levels = moderator_info$panel_title)
+  ) |>
+  dplyr::group_by(panel_title, ses_level) |>
+  dplyr::mutate(
+    # Express each line relative to its prediction at the low-ICT point.
+    science_score_change =
+      predicted_science - predicted_science[ict_level == "Low"]
+  ) |>
+  dplyr::ungroup()
+
+moderation_interaction_plot <- ggplot(
+  interaction_plot_data,
+  aes(
+    x = x_label,
+    y = science_score_change,
+    group = ses_level,
+    linetype = ses_level,
+    shape = ses_level
+  )
+) +
+  geom_hline(
+    yintercept = 0,
+    colour = "grey65",
+    linewidth = 0.5
+  ) +
+  geom_line(colour = "#222222", linewidth = 0.7) +
+  geom_point(colour = "#222222", size = 2.4) +
+  facet_wrap(
+    vars(panel_title),
+    ncol = 1,
+    scales = "free_x",
+    strip.position = "top"
+  ) +
+  scale_linetype_manual(
+    values = c("Low ESCS" = "solid", "High ESCS" = "22")
+  ) +
+  scale_shape_manual(
+    values = c("Low ESCS" = 18, "High ESCS" = 15)
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_pretty(n = 6),
+    expand = expansion(mult = c(0.08, 0.08))
+  ) +
+  labs(
+    x = NULL,
+    y = "Change in predicted science performance\n(from low ICT)",
+    linetype = NULL,
+    shape = NULL
+  ) +
+  theme_bw(base_size = 11, base_family = "serif") +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", size = 12),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey70", linewidth = 0.4),
+    panel.border = element_rect(colour = "grey45", linewidth = 0.7),
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.key.width = grid::unit(1.7, "cm"),
+    panel.spacing.y = grid::unit(0.8, "lines")
+  ) +
+  guides(
+    linetype = guide_legend(order = 1),
+    shape = guide_legend(order = 1)
+  )
+
+moderation_interaction_plot
+
+graph_dir <- if (dir.exists("../graphs")) "../graphs" else "graphs"
+dir.create(graph_dir, recursive = TRUE, showWarnings = FALSE)
+
+ggsave(
+  filename = file.path(graph_dir, "moderation_interaction_plots.png"),
+  plot = moderation_interaction_plot,
+  width = 7,
+  height = 12,
+  dpi = 300,
+  bg = "white"
+)
+```

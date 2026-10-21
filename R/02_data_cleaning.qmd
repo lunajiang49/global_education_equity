@@ -1,0 +1,129 @@
+```{r} 
+#set up
+#| message: false
+#| warning: false
+library(haven)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(knitr)
+library(dplyr)
+
+```
+
+```{r}
+pisa_clean <- read.csv("../data/processed/pisa_clean.csv")
+
+```
+
+```{r}
+variables <- c(
+  "Option_ICTQ",
+  "ST004D01T", # gender
+  "MALE",
+  "CNT",
+  "ICTRES",
+  "AIUSESCH",
+  "ICTSCH",
+  "ICTHOME",
+  "ICTQUAL",
+  "ICTFEED",
+  "ICTOUT",
+  "ICTWKDY",
+  "ICTWKEND",
+  "DIGINTLRN",
+  "INTICT",
+  "ICTAVHOME",
+  "ICTAVSCH",
+  "ICTINFO",
+  "ESCS",
+  "W_FSTUWT",
+  "PV1SCIE",
+  "PV1MATH", 
+  "PV1READ", 
+  "PV1CMPS"
+)
+
+missing_summary_by_variable <- pisa_clean |>
+  summarise(
+    across(
+    all_of(variables),
+    ~ mean(is.na(.)) * 100
+    )
+  ) |>
+  tidyr::pivot_longer(
+    everything(),
+    names_to = "variable",
+    values_to = "percent_missing"
+  )
+
+missing_summary_by_variable
+```
+
+```{r}
+variables_without_country <- setdiff(variables, "CNT")
+
+missing_by_country <- pisa_clean |>
+  group_by(CNT) |>
+  summarise(
+    across(
+      all_of(variables_without_country),
+      ~ round(mean(is.na(.)) * 100, 2)
+    ),
+    .groups = "drop"
+  ) |>
+  pivot_longer(
+    cols = -CNT,
+    names_to = "variable",
+    values_to = "percent_missing"
+  ) |>
+  arrange(CNT, desc(percent_missing))
+
+missing_by_country
+```
+```{r}
+# percentage of observations of MALE not 1 or 0
+pisa_clean |>
+  summarise(
+    percent_not_0_or_1 = round(
+      mean(!(MALE %in% c(0, 1)), na.rm = TRUE) * 100,
+      2
+    )
+  )
+```
+MALE variable has only 0.0008% missing while ST004D01T has 27.1% missing. Therefore, we will use MALE to indicate gender.
+
+Because all analysis requires "MALE", "CNT", "ESCS", "W_FSTUWT", and they have extremely small missing percentage (except for ESCS with 7.72% missing), I will remove these observations from the sample. 
+
+We do not need "Option_ICTQ" and "ST004D01T", so I will remove these variables. 
+
+```{r}
+pisa_analytics <- pisa_clean |>
+  select(-Option_ICTQ, -ST004D01T)
+
+pisa_analytics <- pisa_analytics |>
+  tidyr::drop_na(
+    MALE,
+    CNT,
+    ESCS,
+    W_FSTUWT,
+  )
+dim(pisa_clean)
+dim(pisa_analytics)
+
+glimpse(pisa_analytics)
+```
+
+Originally, PISA 2025 has 755721 observations. After taking out countries that do not offer ICT questionnaire, there are 363472 observations. Then, I took out observations that have missing values in "MALE", "CNT", "ESCS", "W_FSTUWT". I am left with 335424 observations. 
+
+```{r}
+# export
+
+dir.create("/Users/luna/Desktop/GlobalED/data/processed", showWarnings = FALSE)
+
+data.table::fwrite(
+  pisa_analytics,
+  file = "/Users/luna/Desktop/GlobalED/data/processed/pisa_analytics.csv"
+)
+```
