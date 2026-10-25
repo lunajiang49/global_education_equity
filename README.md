@@ -3,6 +3,10 @@
 ### 2026
 
 This GitHub repository contains the code I used to estimate models, the graphs and tables generated, and the research paper. 
+## Repository Structure
+[📄 Read the paper]
+[💻 [View the code]([url](https://github.com/lunajiang49/global_education_equity/tree/main/R))]
+
 
 ## Research Questions 🧐
 This research explores the effect that Information and Communication Technology (ICT) has on the relationship between high school students' socioeconomic status and academic achievement. Does ICT exacerbate or mitigate the achievement gap between high- and low-socioeconomic status? 
