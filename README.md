@@ -16,11 +16,11 @@ AI is also introduced in this most recent PISA assessment. To explore the use of
 **RQ2. Can AI potentially mitigate academic achievement gaps across different socioeconomic groups?** 
 
 ## 📊 Key Findings
-1. A one-unit increase in SES is associated with a 30- to 32-point increase in students’ science scores, confirming previous literature. 
+1. A one-unit increase in SES is associated with a 30- to 32-point increase in students’ science scores, confirming previous literature. [[graph](https://github.com/lunajiang49/global_education_equity/blob/main/graphs/04_escs_models_graphs/04_escs_models_cell4.png)]
 
-2. Varying moderating effects were shown from different ICT indicators: 4 negative interactions, 3 positive interactions, and 5 nonsignificant interactions, highlighting the multidimensional nature of ICT. 
+2. Varying moderating effects were shown from different ICT indicators: 4 negative interactions, 3 positive interactions, and 5 nonsignificant interactions, highlighting the multidimensional nature of ICT. [[table](url)]
 
-3. The achievement gap is possibly narrowing across different SES groups as ICT increases, but in a way that an ICT increase for high-SES students is associated with a larger science score decrease compared to low-SES students
+3. The achievement gap is possibly narrowing across different SES groups as ICT increases, but in a way that an ICT increase for high-SES students is associated with a larger science score decrease compared to low-SES students. [[graph](https://github.com/lunajiang49/global_education_equity/blob/main/graphs/moderation_interaction_plots.png)]
 
 *Important note: 
 - The interaction terms added relatively little explanatory power, and their practical effects remain limited.
