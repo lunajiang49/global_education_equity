@@ -3,17 +3,30 @@
 ### 2026
 
 This GitHub repository contains the code I used to estimate models, the graphs and tables generated, and the research paper. 
-## Repository Structure
-[📄 Read the paper]
-[💻 [View the code]([url](https://github.com/lunajiang49/global_education_equity/tree/main/R))]
+[📄 [Read the paper](https://github.com/lunajiang49/global_education_equity/blob/main/Research%20Paper.pdf)]
+[💻 [View the code](https://github.com/lunajiang49/global_education_equity/tree/main/R)]
 
+## 🧐 Research Questions 
+This research explores the effect that Information and Communication Technology (ICT) has on the relationship between high school students' socioeconomic status (SES) and academic achievement. Does ICT exacerbate or mitigate the achievement gap between high- and low-SES? 
 
-## Research Questions 🧐
-This research explores the effect that Information and Communication Technology (ICT) has on the relationship between high school students' socioeconomic status and academic achievement. Does ICT exacerbate or mitigate the achievement gap between high- and low-socioeconomic status? 
-
-**RQ1.** To what extent does students’ use of digital technologies moderate the association between socioeconomic status and academic achievement in PISA 2025? 
+**RQ1. To what extent does students’ use of digital technologies moderate the association between socioeconomic status and academic achievement in PISA 2025?**
 
 AI is also introduced in this most recent PISA assessment. To explore the use of AI in education, the secondary research question asks: 
 
-**RQ2.** Can AI potentially mitigate academic achievement gaps across different socioeconomic groups?
+**RQ2. Can AI potentially mitigate academic achievement gaps across different socioeconomic groups?** 
+
+## 📊 Key Findings
+1. A one-unit increase in SES is associated with a 30- to 32-point increase in students’ science scores
+
+2. Varying moderating effects were shown from different ICT indicators: 4 negative interactions, 3 positive interactions, and 5 nonsignificant interactions
+
+3. The achievement gap is possibly narrowing across different SES groups as ICT increases, but in a way that an ICT increase for high-SES students is associated with a larger science score decrease compared to low-SES students
+
+*Important note: 
+- the interaction terms added relatively little explanatory power, and their practical effects remain limited.
+- Because PISA is an observational study through self-reported backgrounds, we cannot conclude causual relationships. 
+
+
+
+
 
