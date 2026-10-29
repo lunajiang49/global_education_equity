@@ -1,6 +1,6 @@
 # Paradox of Mitigating the Achievement Gap: Digital Technology and Socioeconomic Inequality in PISA 2025
-### Author: Yue Jiang 
-### 2026
+**Author**: Yue Jiang
+**Year**: 2026
 
 This GitHub repository contains the code I used to estimate models, the graphs and tables generated, and the research paper. 
 [📄 [Read the paper](https://github.com/lunajiang49/global_education_equity/blob/main/Research%20Paper.pdf)]
